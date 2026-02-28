@@ -126,8 +126,8 @@ MFA_AUTH_STATE_DIR=~/.openclaw/mfa-auth/    # 认证状态持久化目录
 
 **配置详解：**
 
-- `权威实名认证平台_CLIENT_ID`: 权威刷脸认证服务的 Client ID。
-- `权威实名认证平台_CLIENT_SECRET`: 权威刷脸认证服务的 Client Secret。
+- `DABBY_CLIENT_ID`: 权威实名认证服务的 Client ID。
+- `DABBY_CLIENT_SECRET`: 权威实名认证服务的 Client Secret。
 
 **可选配置：**
 
