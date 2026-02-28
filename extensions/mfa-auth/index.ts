@@ -27,11 +27,22 @@ export default function register(api: OpenClawPluginApi) {
       const triggerType = session.originalContext.triggerType || "sensitive_operation";
 
       const isFirstMessageAuth = triggerType === "first_message";
+      const isReauth = commandBody?.trim() === "/reauth";
 
       if (!channel || channel === "web") {
         api.logger.info(
           `[mfa-auth] Web channel detected or no channel for ${session.userId}. Sending fallback notification.`,
         );
+
+        let messageText = "";
+        if (isFirstMessageAuth) {
+          messageText = isReauth
+            ? `🎉 重新认证成功！请重新发送消息以继续对话。`
+            : `🎉 首次认证成功！请重新发送消息以继续对话。`;
+        } else {
+          messageText = `✅ 二次认证成功！\n\n请回到聊天窗口，重新发送之前的命令（或回复'确认'）即可执行。`;
+        }
+
         await deliverOutboundPayloads({
           cfg,
           channel: "web",
@@ -39,9 +50,7 @@ export default function register(api: OpenClawPluginApi) {
           accountId: session.originalContext.accountId,
           payloads: [
             {
-              text: isFirstMessageAuth
-                ? `🎉 首次认证成功！请重新发送消息以继续对话。`
-                : `✅ 二次认证成功！\n\n请回到聊天窗口，重新发送之前的命令（或回复'确认'）即可执行。`,
+              text: messageText,
             },
           ],
         });
@@ -68,9 +77,15 @@ export default function register(api: OpenClawPluginApi) {
         api.logger.warn(`[mfa-auth] Error resolving target: ${e}. Proceeding with original 'to'.`);
       }
 
-      const finalTo = resolvedTo.startsWith(`${channel}:`) ? resolvedTo.slice(`${channel}:`.length) : resolvedTo;
+      const finalTo = resolvedTo.startsWith(`${channel}:`)
+        ? resolvedTo.slice(`${channel}:`.length)
+        : resolvedTo;
 
       if (isFirstMessageAuth) {
+        const messageText = isReauth
+          ? `🎉 重新认证成功！请重新发送消息以继续对话。`
+          : `🎉 首次认证成功！请重新发送消息以继续对话。`;
+
         await deliverOutboundPayloads({
           cfg,
           channel,
@@ -78,7 +93,7 @@ export default function register(api: OpenClawPluginApi) {
           accountId,
           payloads: [
             {
-              text: `🎉 首次认证成功！请重新发送消息以继续对话。`,
+              text: messageText,
             },
           ],
         });

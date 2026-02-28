@@ -74,8 +74,16 @@ export class QrCodeAuthProvider extends BaseAuthProvider {
         : session.originalContext.commandBody;
 
     const qrCode = session.qrcodeContent ? await renderQrPngBase64(session.qrcodeContent) : "";
+    const isReauth = session.originalContext.commandBody.trim() === "/reauth";
 
-    return this.renderHtml(session.sessionId, commandPreview, qrCode, remainingTime, triggerType);
+    return this.renderHtml(
+      session.sessionId,
+      commandPreview,
+      qrCode,
+      remainingTime,
+      triggerType,
+      isReauth,
+    );
   }
 
   private renderHtml(
@@ -84,11 +92,16 @@ export class QrCodeAuthProvider extends BaseAuthProvider {
     qrCode: string,
     remainingTime: number,
     triggerType: "first_message" | "sensitive_operation" = "sensitive_operation",
+    isReauth: boolean = false,
   ): string {
     const escapedPreview = this.escapeHtml(commandPreview);
     const isFirstMessageAuth = triggerType === "first_message";
-    const pageTitle = isFirstMessageAuth ? "首次认证" : "二次认证";
-    const pageTitleWithIcon = isFirstMessageAuth ? "🔐 首次认证" : "🔐 二次认证";
+    const pageTitle = isFirstMessageAuth ? (isReauth ? "重新认证" : "首次认证") : "二次认证";
+    const pageTitleWithIcon = isFirstMessageAuth
+      ? isReauth
+        ? "🔐 重新认证"
+        : "🔐 首次认证"
+      : "🔐 二次认证";
 
     return `
 <!DOCTYPE html>
@@ -289,7 +302,7 @@ export class QrCodeAuthProvider extends BaseAuthProvider {
       <strong>${escapedPreview}</strong>
     </div>
     <div class="qr-section">
-      <h3>📱 请打开【数字身份助手APP】扫码</h3>
+      <h3>📱 请打开【微信或数字身份助手APP】扫码</h3>
       <div class="qr-image">
         ${qrCode ? `<img id="qr-img" src="data:image/png;base64,${qrCode}" alt="认证二维码" width="200" height="200">` : '<p class="loading"></p><p>正在生成二维码...</p>'}
       </div>
@@ -307,6 +320,7 @@ export class QrCodeAuthProvider extends BaseAuthProvider {
     const sessionId = "${sessionId}";
     const triggerType = "${triggerType}";
     const isFirstMessageAuth = triggerType === "first_message";
+    const isReauth = ${isReauth};
     let timeLeft = ${remainingTime};
     let pollInterval;
     let isPolling = true;
@@ -342,7 +356,9 @@ export class QrCodeAuthProvider extends BaseAuthProvider {
 
       let successMessage = '';
       if (isFirstMessageAuth) {
-        successMessage = '✅ 认证成功！请回到聊天窗口，重新发送消息以继续对话。';
+        successMessage = isReauth 
+          ? '✅ 认证成功！请回到聊天窗口，重新发送消息以继续对话。'
+          : '✅ 认证成功！请回到聊天窗口，重新发送消息以继续对话。';
       } else {
         successMessage = '✅ 认证成功！请回到聊天窗口，重新发送之前的命令' + operationNameTag + '即可执行。';
       }
