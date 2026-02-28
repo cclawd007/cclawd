@@ -6,7 +6,7 @@
 
 1. **首次对话验证**：可配置新用户在首次发送消息时必须通过身份验证。
 2. **二次认证，敏感操作拦截**：自动拦截包含敏感关键词（如 `rm`, `restart`, `sudo`, `delete` 等）的命令执行，要求用户进行二次验证。
-3. **二维码验证**：集成 **Dabby (大白)** 身份核验服务，提供便捷的扫码实名认证。
+3. **二维码验证**：集成权威的刷脸认证功能，提供便捷扫码实名认证能力。
 4. **状态持久化**：验证状态可配置有效期并持久化保存，避免频繁重复验证。
 
 ## 实现原理
@@ -20,7 +20,7 @@
 - **拦截钩子 (`index.ts`)**:
   - `before_tool_call`: 拦截工具调用，检查命令是否包含敏感词。
   - `message_received`: 拦截用户消息，检查是否为新用户首次对话。
-- **验证提供者 (`src/providers/qr-code.ts`)**: 实现了基于 Dabby 的二维码验证逻辑。
+- **验证提供者 (`src/providers/qr-code.ts`)**: 实现了基于 权威实名认证平台 的二维码验证逻辑。
 
 ### 工作流程
 
@@ -31,7 +31,7 @@ sequenceDiagram
     participant CClawd as CClawd核心
     participant Plugin as MFA插件
     participant Browser as 验证页面
-    participant Dabby as Dabby实名服务
+    participant 权威实名认证 as 权威实名认证
 
     User->>Channel: 发送消息/指令
     Channel->>CClawd: 接收消息
@@ -39,20 +39,20 @@ sequenceDiagram
 
     alt 需要认证 (首次对话 或 敏感操作 或 重新认证)
         Plugin->>Plugin: 检查本地认证状态
-        Plugin->>Dabby: 请求实名认证二维码
-        Dabby-->>Plugin: 返回二维码数据
+        Plugin->>权威实名认证: 请求实名认证二维码
+        权威实名认证-->>Plugin: 返回二维码数据
         Plugin->>Plugin: 创建验证会话 (Session)
         Plugin-->>Channel: 发送验证链接
         Channel-->>User: 显示验证链接消息
 
         User->>Browser: 点击链接打开页面
-        Browser->>Dabby: 展示二维码
-        User->>Dabby: 手机扫码认证
+        Browser->>权威实名认证: 展示二维码
+        User->>权威实名认证: 手机扫码认证
 
         loop 轮询状态
             Browser->>Plugin: 查询验证状态
-            Plugin->>Dabby: 校验认证结果
-            Dabby-->>Plugin: 返回结果
+            Plugin->>权威实名认证: 校验认证结果
+            权威实名认证-->>Plugin: 返回结果
         end
 
         Plugin->>Plugin: 更新用户认证状态 (持久化)
@@ -72,7 +72,7 @@ sequenceDiagram
     - 或者当配置了 `requireAuthOnFirstMessage` 且新用户发送第一条消息时，`message_received` 钩子被触发。
 
 2.  **生成会话**：
-    - `AuthManager` 创建一个验证会话，并调用 Dabby API 生成实名认证二维码。
+    - `AuthManager` 创建一个验证会话，并调用 权威实名认证平台 API 生成实名认证二维码。
     - 系统通过原聊天频道（Telegram, Discord 等）向用户发送一个唯一的验证链接（例如 `http://localhost:18801/mfa-auth/<sessionId>`）。
 
 3.  **用户验证**：
@@ -97,16 +97,16 @@ npm install
 
 ### 2. 配置环境变量
 
-插件依赖环境变量进行配置。你可以在运行 CClawd 时设置这些变量，或者将其添加到你的根目录**.cclawd/.env**环境配置文件中。
+插件依赖环境变量进行配置。你可以在运行 CClawd 时设置这些变量，或者将其添加到你的根目录**.openclaw/.env**环境配置文件中。
 
 **示例 `.env` 配置**
 
-你可以直接复制以下内容到你的 `.env` 文件中，并填入你的 Dabby 账号信息：
+你可以直接复制以下内容到你的 `.env` 文件中，并填入你的 权威实名认证 账号信息：
 
 ```ini
 # --- MFA 认证扩展配置 ---
 
-# Dabby (大白) 实名认证账号 (必填)
+# 权威实名认证服务账号 (必填)
 DABBY_CLIENT_ID=your_client_id_here
 DABBY_CLIENT_SECRET=your_client_secret_here
 
@@ -121,13 +121,13 @@ MFA_FIRST_MESSAGE_AUTH_DURATION=86400000    # 首次认证有效期 (24小时)
 MFA_VERIFICATION_DURATION=120000            # 敏感操作验证有效期 (2分钟)
 
 # 存储路径
-MFA_AUTH_STATE_DIR=~/.cclawd/mfa-auth/    # 认证状态持久化目录
+MFA_AUTH_STATE_DIR=~/.openclaw/mfa-auth/    # 认证状态持久化目录
 ```
 
 **配置详解：**
 
-- `DABBY_CLIENT_ID`: Dabby (大白) 平台的 Client ID。
-- `DABBY_CLIENT_SECRET`: Dabby (大白) 平台的 Client Secret。
+- `权威实名认证平台_CLIENT_ID`: 权威刷脸认证服务的 Client ID。
+- `权威实名认证平台_CLIENT_SECRET`: 权威刷脸认证服务的 Client Secret。
 
 **可选配置：**
 
@@ -137,7 +137,7 @@ MFA_AUTH_STATE_DIR=~/.cclawd/mfa-auth/    # 认证状态持久化目录
 | `MFA_VERIFICATION_DURATION`         | 敏感操作验证通过后的有效期（毫秒）   | `120000` (2分钟)                                  |
 | `MFA_REQUIRE_AUTH_ON_FIRST_MESSAGE` | 是否开启首次对话强制认证             | `false` (设为 `true` 开启)                        |
 | `MFA_FIRST_MESSAGE_AUTH_DURATION`   | 首次对话认证的有效期（毫秒）         | `86400000` (24小时)                               |
-| `MFA_AUTH_STATE_DIR`                | 认证状态持久化存储目录               | `~/.cclawd/mfa-auth/`                             |
+| `MFA_AUTH_STATE_DIR`                | 认证状态持久化存储目录               | `~/.openclaw/mfa-auth/`                           |
 
 ### 3. 启用插件 (cclawd.json)
 
