@@ -1,0 +1,11 @@
+{
+  "id": "mfa-auth",
+  "name": "MFA Auth",
+  "description": "Multi-factor authentication plugin with pluggable providers. Supports QR code authentication with extensible design for future auth methods (image captcha, SMS, email).",
+  "hooks": ["before_tool_call"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
